@@ -484,6 +484,9 @@ var trainErro = document.getElementById('trainErro');
 var trainSucesso = document.getElementById('trainSucesso');
 var trainResults = document.getElementById('trainResults');
 
+document.getElementById('folderArea').addEventListener('click', function() {
+  folderInput.click();
+});
 folderInput.addEventListener('change', function() {
   if (this.files.length) {
     var total = this.files.length;
