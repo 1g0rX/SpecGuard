@@ -10,3 +10,4 @@ imgs/
 src/
 guia_completo.*
 models/mean_train.npy
+*.tar.gz
