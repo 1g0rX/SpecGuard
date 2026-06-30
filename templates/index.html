@@ -35,7 +35,7 @@ body {
 }
 
 .container {
-  max-width: 860px;
+  max-width: 880px;
   margin: 0 auto;
   padding: 28px 20px;
 }
@@ -76,6 +76,12 @@ body {
 }
 
 .upload-area input[type="file"] { display: none; }
+
+.folder-info {
+  font-size: 13px;
+  color: #6a6052;
+  margin-top: 8px;
+}
 
 .preview-area {
   display: none;
@@ -213,15 +219,62 @@ body {
   margin-bottom: 12px;
 }
 
-.rodape {
-  text-align: center;
-  font-size: 12px;
-  color: #b0a89c;
-  margin-top: 32px;
-  padding-bottom: 20px;
+.sucesso {
+  display: none;
+  background: #e0f2e0;
+  border: 1px solid #2a7a3a;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #1a4a2a;
+  margin-bottom: 12px;
 }
 
-#results { display: none; }
+.status-modelo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6a6052;
+  margin-bottom: 14px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.pronto { background: #2a7a3a; }
+.status-dot.ausente { background: #b33; }
+
+#results, #trainResults { display: none; }
+
+.treino-metricas {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.treino-metrica {
+  flex: 1;
+  border: 1px solid #d9d0c4;
+  padding: 12px;
+  text-align: center;
+  background: #fcf9f6;
+}
+
+.treino-metrica .valor {
+  font-size: 22px;
+  font-weight: 700;
+  color: #2c2c2c;
+}
+
+.treino-metrica .rotulo {
+  font-size: 11px;
+  color: #8a7e6e;
+  margin-top: 2px;
+}
 </style>
 </head>
 <body>
@@ -280,6 +333,51 @@ body {
         <span style="color:#b33;">— vermelho</span>
         <span style="color:#2a7a3a;">— verde</span>
         <span style="color:#2a5a8a;">— azul</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="secao">
+    <div class="secao-titulo">Treinamento</div>
+    <div class="status-modelo" id="statusModelo">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusTexto">verificando modelos...</span>
+    </div>
+    <div id="trainArea">
+      <p style="font-size:13px;color:#6a6052;margin:0 0 10px 0">
+        Selecione a pasta que contem as subpastas <b>violencia/</b> e <b>nao_violencia/</b>
+        com as imagens para treinar novos modelos.
+      </p>
+      <div class="upload-area" style="padding:20px" id="folderArea">
+        <p>clique para selecionar a pasta do dataset</p>
+        <input type="file" id="folderInput" webkitdirectory>
+      </div>
+      <div class="folder-info" id="folderInfo"></div>
+      <div class="acoes">
+        <button class="btn primario" id="btnTreinar" onclick="treinar()" disabled>Treinar modelos</button>
+      </div>
+    </div>
+    <div class="loading" id="trainLoading">treinando modelos... (pode levar alguns minutos)</div>
+    <div class="erro" id="trainErro"></div>
+    <div class="sucesso" id="trainSucesso"></div>
+    <div id="trainResults">
+      <div class="treino-metricas">
+        <div class="treino-metrica">
+          <div class="valor" id="trfAcc">—</div>
+          <div class="rotulo">RF acuracia</div>
+        </div>
+        <div class="treino-metrica">
+          <div class="valor" id="tsvmAcc">—</div>
+          <div class="rotulo">SVM acuracia</div>
+        </div>
+        <div class="treino-metrica">
+          <div class="valor" id="tTotal">—</div>
+          <div class="rotulo">imagens originais</div>
+        </div>
+        <div class="treino-metrica">
+          <div class="valor" id="tAug">—</div>
+          <div class="rotulo">amostras de treino</div>
+        </div>
       </div>
     </div>
   </div>
@@ -368,16 +466,100 @@ function mostrarResultado(modelo, data) {
   var classeEl = document.getElementById(modelo + 'Classe');
   var confEl = document.getElementById(modelo + 'Conf');
   var barEl = document.getElementById(modelo + 'Bar');
-
   var classe = data.classe;
   var confianca = (data.confianca * 100).toFixed(1);
-
   classeEl.textContent = classe === 'violencia' ? 'VIOLENCIA' : 'NAO VIOLENCIA';
   classeEl.className = 'classe ' + classe;
   confEl.textContent = 'confianca: ' + confianca + '%';
   barEl.className = 'fill ' + classe;
   barEl.style.width = confianca + '%';
 }
+
+// --- Treinamento ---
+var folderInput = document.getElementById('folderInput');
+var folderInfo = document.getElementById('folderInfo');
+var btnTreinar = document.getElementById('btnTreinar');
+var trainLoading = document.getElementById('trainLoading');
+var trainErro = document.getElementById('trainErro');
+var trainSucesso = document.getElementById('trainSucesso');
+var trainResults = document.getElementById('trainResults');
+
+folderInput.addEventListener('change', function() {
+  if (this.files.length) {
+    var total = this.files.length;
+    var temViolencia = false, temNaoViolencia = false;
+    for (var i = 0; i < this.files.length; i++) {
+      var path = this.files[i].webkitRelativePath;
+      if (path.includes('/')) {
+        var pasta = path.split('/')[0];
+        if (pasta === 'violencia') temViolencia = true;
+        if (pasta === 'nao_violencia') temNaoViolencia = true;
+      }
+    }
+    folderInfo.textContent = total + ' arquivo(s) encontrado(s)' +
+      (temViolencia ? ' — violencia ✓' : ' — violencia ✗') +
+      (temNaoViolencia ? ', nao_violencia ✓' : ', nao_violencia ✗');
+    btnTreinar.disabled = !(temViolencia && temNaoViolencia);
+  }
+});
+
+async function treinar() {
+  if (!folderInput.files.length) return;
+  var formData = new FormData();
+  for (var i = 0; i < folderInput.files.length; i++) {
+    formData.append('files[]', folderInput.files[i], folderInput.files[i].webkitRelativePath);
+  }
+
+  trainLoading.style.display = 'block';
+  trainErro.style.display = 'none';
+  trainSucesso.style.display = 'none';
+  trainResults.style.display = 'none';
+  btnTreinar.disabled = true;
+
+  try {
+    var resp = await fetch('/api/retrain', { method: 'POST', body: formData });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'erro no treinamento');
+
+    document.getElementById('trfAcc').textContent = (data.rf.acuracia * 100).toFixed(1) + '%';
+    document.getElementById('tsvmAcc').textContent = (data.svm.acuracia * 100).toFixed(1) + '%';
+    document.getElementById('tTotal').textContent = data.imagens_originais;
+    document.getElementById('tAug').textContent = data.treino;
+
+    trainLoading.style.display = 'none';
+    trainResults.style.display = 'block';
+    trainSucesso.innerHTML = '<b>Treinamento concluido!</b> Modelos salvos e carregados. ' +
+      'RF: ' + data.rf.arvores + ' arvores, acuracia ' + (data.rf.acuracia * 100).toFixed(1) + '%. ' +
+      'SVM: acuracia ' + (data.svm.acuracia * 100).toFixed(1) + '%.';
+    trainSucesso.style.display = 'block';
+    atualizarStatus(true);
+  } catch (e) {
+    trainLoading.style.display = 'none';
+    trainErro.innerHTML = '<b>ERRO:</b> ' + e.message;
+    trainErro.style.display = 'block';
+  }
+  btnTreinar.disabled = false;
+}
+
+function atualizarStatus(pronto) {
+  var dot = document.getElementById('statusDot');
+  var txt = document.getElementById('statusTexto');
+  dot.className = 'status-dot ' + (pronto ? 'pronto' : 'ausente');
+  txt.textContent = pronto ? 'modelos carregados' : 'modelos ausentes — treine primeiro';
+}
+
+// Checa status inicial
+fetch('/api/predict', { method: 'POST' }).then(function(r) {
+  return r.json();
+}).then(function(d) {
+  if (d.error && d.error.indexOf('Modelos') !== -1) {
+    atualizarStatus(false);
+  } else {
+    atualizarStatus(true);
+  }
+}).catch(function() {
+  atualizarStatus(false);
+});
 </script>
 </body>
 </html>

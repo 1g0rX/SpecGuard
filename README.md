@@ -52,7 +52,23 @@ python specguard.py
 O navegador abre automaticamente em `http://127.0.0.1:5000`.  
 Pressione `Ctrl+C` no terminal para encerrar.
 
-> Os modelos já vêm treinados em `models/rf_model.pkl` e `models/svm_model.pkl`. Para re-treinar, é necessário ter o dataset em `data/originais/` (não incluso no repositório) e executar `python src/train_models.py`.
+Os modelos já vêm treinados em `models/rf_model.pkl` e `models/svm_model.pkl`.
+
+## Re-treinar
+
+Pela interface web, vá na seção **Treinamento**, selecione a pasta que contém as subpastas `violencia/` e `nao_violencia/` com as imagens, e clique em **Treinar modelos**. O servidor processa as imagens, treina novos modelos e exibe as métricas na tela.
+
+A estrutura esperada da pasta selecionada é:
+
+```
+pasta_selecionada/
+├── violencia/
+│   ├── img1.jpg
+│   └── ...
+└── nao_violencia/
+    ├── img1.jpg
+    └── ...
+```
 
 ## Dataset
 
@@ -62,7 +78,7 @@ O modelo foi treinado com **24 imagens** (12 violência, 12 não violência). Ca
 
 | Modelo | Kernel | Características |
 |--------|--------|----------------|
-| Random Forest | 100 árvores | 60 features (20 anéis × 3 canais) |
+| Random Forest | N árvores (grid search 1-96) | 60 features (20 anéis × 3 canais) |
 | SVM | RBF | 60 features (20 anéis × 3 canais) |
 
 ## Arquivos essenciais
@@ -82,13 +98,27 @@ SpecGuard/
 
 ## API
 
-`POST /api/predict` — envia uma imagem (`multipart/form-data`, campo `image`), retorna JSON com:
+### `POST /api/predict`
+Envia uma imagem (`multipart/form-data`, campo `image`), retorna JSON com classificação e gráfico:
 
 ```json
 {
   "rf": { "classe": "violencia", "confianca": 0.94 },
   "svm": { "classe": "violencia", "confianca": 0.87 },
   "plot": "data:image/png;base64,..."
+}
+```
+
+### `POST /api/retrain`
+Envia os arquivos do dataset (`multipart/form-data`, campo `files[]` com `webkitRelativePath`), retorna JSON com métricas:
+
+```json
+{
+  "rf": { "acuracia": 0.87, "arvores": 30 },
+  "svm": { "acuracia": 0.82 },
+  "imagens_originais": 24,
+  "treino": 900,
+  "teste": 300
 }
 ```
 
