@@ -110,17 +110,40 @@ Envia uma imagem (`multipart/form-data`, campo `image`), retorna JSON com classi
 ```
 
 ### `POST /api/retrain`
-Envia os arquivos do dataset (`multipart/form-data`, campo `files[]` com `webkitRelativePath`), retorna JSON com métricas:
+Envia os arquivos do dataset (`multipart/form-data`, campo `files[]` com `webkitRelativePath`), retorna JSON com métricas e matrizes de confusão (base64):
 
 ```json
 {
-  "rf": { "acuracia": 0.87, "arvores": 30 },
-  "svm": { "acuracia": 0.82 },
+  "rf": {
+    "acuracia": 0.87,
+    "precisao": 0.85,
+    "revocacao": 0.90,
+    "f1": 0.87,
+    "arvores": 30,
+    "matriz": [[120, 15], [10, 155]]
+  },
+  "svm": {
+    "acuracia": 0.82,
+    "precisao": 0.80,
+    "revocacao": 0.86,
+    "f1": 0.83,
+    "matriz": [[115, 20], [12, 153]]
+  },
   "imagens_originais": 24,
   "treino": 900,
-  "teste": 300
+  "teste": 300,
+  "plots": {
+    "rf": "data:image/png;base64,...",
+    "svm": "data:image/png;base64,..."
+  }
 }
 ```
+
+Após o treinamento, a interface exibe:
+- **Matriz de confusão** para cada modelo
+- **Acurácia, precisão, revocação e F1-score**
+- Número de árvores usadas (RF)
+- Quantidade de imagens originais, amostras de treino e de teste
 
 ## Tecnologias
 

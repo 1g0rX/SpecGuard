@@ -10,7 +10,7 @@ from tensorflow.keras.preprocessing.image import (
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support
 import cv2
 import matplotlib
 matplotlib.use('Agg')
@@ -66,6 +66,29 @@ def extrair_caracteristicas(imagem_flat):
         magnitude = np.log(np.abs(fshift) + 1)
         feats.extend(perfil_radial(magnitude))
     return np.array(feats)
+
+# --- confusion matrix plot ---
+def gerar_matriz_confusao(cm, nome, acuracia):
+    fig, ax = plt.subplots(figsize=(3.5, 3.5))
+    ax.imshow(cm, cmap='Blues', vmin=0, vmax=cm.max() + 5)
+    for i in range(2):
+        for j in range(2):
+            ax.text(j, i, str(cm[i, j]), ha='center', va='center',
+                    fontsize=22, fontweight='bold',
+                    color='white' if cm[i, j] > cm.max() / 2 else '#333')
+    ax.set_xticks([0, 1])
+    ax.set_yticks([0, 1])
+    ax.set_xticklabels(['nao\nviolencia', 'violencia'], fontsize=8)
+    ax.set_yticklabels(['nao\nviolencia', 'violencia'], fontsize=8)
+    ax.set_xlabel('Predito', fontsize=9)
+    ax.set_ylabel('Real', fontsize=9)
+    ax.set_title(f'{nome} (acc={acuracia:.1%})', fontsize=10, fontweight='bold')
+    plt.tight_layout()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=120, bbox_inches='tight')
+    plt.close()
+    buf.seek(0)
+    return base64.b64encode(buf.getvalue()).decode('utf-8')
 
 # --- training ---
 def treinar_modelos(dataset_dir):
@@ -132,23 +155,50 @@ def treinar_modelos(dataset_dir):
     rf = RandomForestClassifier(n_estimators=melhor_n, random_state=42)
     rf.fit(X_train_aug, y_train_aug)
     joblib.dump(rf, MODELS_DIR / "rf_model.pkl")
-    rf_acc = accuracy_score(y_test_aug, rf.predict(X_test_aug))
+    y_pred_rf = rf.predict(X_test_aug)
+    rf_acc = accuracy_score(y_test_aug, y_pred_rf)
+    cm_rf = confusion_matrix(y_test_aug, y_pred_rf)
+    prec_rf, rec_rf, f1_rf, _ = precision_recall_fscore_support(
+        y_test_aug, y_pred_rf, average='binary'
+    )
 
     svm = SVC(kernel='rbf', random_state=42, cache_size=2000, probability=True)
     svm.fit(X_train_aug, y_train_aug)
     joblib.dump(svm, MODELS_DIR / "svm_model.pkl")
-    svm_acc = accuracy_score(y_test_aug, svm.predict(X_test_aug))
+    y_pred_svm = svm.predict(X_test_aug)
+    svm_acc = accuracy_score(y_test_aug, y_pred_svm)
+    cm_svm = confusion_matrix(y_test_aug, y_pred_svm)
+    prec_svm, rec_svm, f1_svm, _ = precision_recall_fscore_support(
+        y_test_aug, y_pred_svm, average='binary'
+    )
+
+    plot_rf = gerar_matriz_confusao(cm_rf, 'Random Forest', rf_acc)
+    plot_svm = gerar_matriz_confusao(cm_svm, 'SVM RBF', svm_acc)
 
     global rf_model, svm_model
     rf_model = rf
     svm_model = svm
 
     return {
-        'rf': { 'acuracia': round(rf_acc, 4), 'arvores': melhor_n },
-        'svm': { 'acuracia': round(svm_acc, 4) },
+        'rf': {
+            'acuracia': round(rf_acc, 4),
+            'precisao': round(prec_rf, 4),
+            'revocacao': round(rec_rf, 4),
+            'f1': round(f1_rf, 4),
+            'arvores': melhor_n,
+            'matriz': cm_rf.tolist(),
+        },
+        'svm': {
+            'acuracia': round(svm_acc, 4),
+            'precisao': round(prec_svm, 4),
+            'revocacao': round(rec_svm, 4),
+            'f1': round(f1_svm, 4),
+            'matriz': cm_svm.tolist(),
+        },
         'treino': X_train_aug.shape[0],
         'teste': X_test_aug.shape[0],
         'imagens_originais': len(X),
+        'plots': { 'rf': plot_rf, 'svm': plot_svm },
     }, None
 
 # --- plot ---

@@ -275,6 +275,43 @@ body {
   color: #8a7e6e;
   margin-top: 2px;
 }
+
+.matrizes {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
+  justify-content: center;
+}
+
+.matrizes img {
+  max-width: 48%;
+  border: 1px solid #d9d0c4;
+}
+
+.modelo-metrics {
+  margin-top: 10px;
+}
+
+.modelo-metrics table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.modelo-metrics td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #e8dfd6;
+}
+
+.modelo-metrics td:first-child {
+  color: #8a7e6e;
+  font-weight: 600;
+}
+
+.modelo-metrics td:last-child {
+  text-align: right;
+  font-weight: 700;
+}
 </style>
 </head>
 <body>
@@ -363,20 +400,26 @@ body {
     <div id="trainResults">
       <div class="treino-metricas">
         <div class="treino-metrica">
-          <div class="valor" id="trfAcc">—</div>
-          <div class="rotulo">RF acuracia</div>
-        </div>
-        <div class="treino-metrica">
-          <div class="valor" id="tsvmAcc">—</div>
-          <div class="rotulo">SVM acuracia</div>
-        </div>
-        <div class="treino-metrica">
           <div class="valor" id="tTotal">—</div>
           <div class="rotulo">imagens originais</div>
         </div>
         <div class="treino-metrica">
           <div class="valor" id="tAug">—</div>
           <div class="rotulo">amostras de treino</div>
+        </div>
+        <div class="treino-metrica">
+          <div class="valor" id="tTest">—</div>
+          <div class="rotulo">amostras de teste</div>
+        </div>
+      </div>
+      <div class="matrizes" id="matrizes">
+        <div class="modelo-metrics">
+          <table><tbody id="rfMetrics"></tbody></table>
+          <img id="cmRf">
+        </div>
+        <div class="modelo-metrics">
+          <table><tbody id="svmMetrics"></tbody></table>
+          <img id="cmSvm">
         </div>
       </div>
     </div>
@@ -524,16 +567,29 @@ async function treinar() {
     var data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'erro no treinamento');
 
-    document.getElementById('trfAcc').textContent = (data.rf.acuracia * 100).toFixed(1) + '%';
-    document.getElementById('tsvmAcc').textContent = (data.svm.acuracia * 100).toFixed(1) + '%';
     document.getElementById('tTotal').textContent = data.imagens_originais;
     document.getElementById('tAug').textContent = data.treino;
+    document.getElementById('tTest').textContent = data.teste;
+
+    function preencherMetricas(id, m, nome) {
+      var tbody = document.getElementById(id);
+      tbody.innerHTML =
+        '<tr><td>Modelo</td><td>' + nome + '</td></tr>' +
+        '<tr><td>Acurácia</td><td>' + (m.acuracia * 100).toFixed(1) + '%</td></tr>' +
+        '<tr><td>Precisão</td><td>' + (m.precisao * 100).toFixed(1) + '%</td></tr>' +
+        '<tr><td>Revocação</td><td>' + (m.revocacao * 100).toFixed(1) + '%</td></tr>' +
+        '<tr><td>F1-Score</td><td>' + (m.f1 * 100).toFixed(1) + '%</td></tr>' +
+        (m.arvores ? '<tr><td>Árvores</td><td>' + m.arvores + '</td></tr>' : '');
+    }
+    preencherMetricas('rfMetrics', data.rf, 'Random Forest');
+    preencherMetricas('svmMetrics', data.svm, 'SVM RBF');
+
+    document.getElementById('cmRf').src = 'data:image/png;base64,' + data.plots.rf;
+    document.getElementById('cmSvm').src = 'data:image/png;base64,' + data.plots.svm;
 
     trainLoading.style.display = 'none';
     trainResults.style.display = 'block';
-    trainSucesso.innerHTML = '<b>Treinamento concluido!</b> Modelos salvos e carregados. ' +
-      'RF: ' + data.rf.arvores + ' arvores, acuracia ' + (data.rf.acuracia * 100).toFixed(1) + '%. ' +
-      'SVM: acuracia ' + (data.svm.acuracia * 100).toFixed(1) + '%.';
+    trainSucesso.innerHTML = '<b>Treinamento concluido!</b> Modelos salvos e carregados.';
     trainSucesso.style.display = 'block';
     atualizarStatus(true);
   } catch (e) {
