@@ -1,50 +1,98 @@
-# SpecGuard 🔬🛡️
+# SpecGuard
 
-Classificação de violência contra a mulher em imagens via **Transformada de Fourier 2D** e **Random Forest / SVM**.
+Classificação de violência contra a mulher em imagens via **perfil radial da FFT 2D** com **Random Forest** e **SVM**.
 
-## Estrutura
+## Funcionamento
+
+O pipeline transforma uma imagem em 60 características numéricas e usa dois modelos treinados para classificá-la:
 
 ```
-SpecGuard/
-├── src/
-│   ├── rf_classifier.py      # Random Forest + FFT
-│   └── svm_classifier.py     # SVM RBF + FFT
-├── data/
-│   └── originais/
-│       ├── violencia/        # 12 imagens
-│       └── nao_violencia/    # 12 imagens
-├── results/                  # Métricas e gráficos (gerado)
-├── requirements.txt
-└── README.md
+Imagem → Gaussian Blur → FFT 2D → Perfil Radial (20 anéis × 3 canais) → 60 features → RF + SVM → resultado
 ```
+
+### Etapas em detalhe
+
+1. **Redimensionamento** — a imagem é redimensionada para 150×150 pixels
+2. **Normalização** — os pixels são divididos por 255 (valores entre 0 e 1)
+3. **Gaussian Blur** — filtro 5×5 suaviza a imagem e remove ruído de alta frequência
+4. **FFT 2D** — cada canal RGB é transformado para o domínio da frequência com `np.fft.fft2`
+5. **Espectro deslocado** — `fftshift` centraliza a frequência zero no meio da matriz
+6. **Log do espectro** — `log(|F| + 1)` comprime a escala para visualização e análise
+7. **Perfil radial** — 20 anéis concêntricos medem a energia média em cada faixa de frequência, repetido para R, G e B → 60 características
+8. **Classificação** — os 60 valores alimentam Random Forest e SVM lado a lado
+9. **Visualização** — matplotlib gera um gráfico com 3 painéis: imagem original, espectro com anéis, curvas energia×frequência
+
+### Por que FFT + perfil radial?
+
+A FFT revela padrões de frequência invisíveis no domínio espacial. O perfil radial resume o espectro inteiro em 60 valores que capturam como a energia se distribui das baixas (centro) às altas (bordas) frequências. Imagens de violência e não violência tendem a ter distribuições diferentes — o modelo aprende a distingui-las.
+
+## Pré-requisitos
+
+- Python 3.9+
+- pip
 
 ## Como usar
 
 ```bash
-# 1. ambiente virtual
+# 1. clone o repositório
+git clone git@github.com:1g0rX/SpecGuard.git
+cd SpecGuard
+
+# 2. crie e ative o ambiente virtual
 python3 -m venv venv
 source venv/bin/activate
 
-# 2. dependências
+# 3. instale as dependências
 pip install -r requirements.txt
 
-# 3. treinar modelos (primeira vez apenas)
-python src/train_models.py
-
-# 4. executar a interface
+# 4. execute
 python specguard.py
 ```
 
-A interface abre automaticamente no navegador em `http://127.0.0.1:5000`.
+O navegador abre automaticamente em `http://127.0.0.1:5000`.  
 Pressione `Ctrl+C` no terminal para encerrar.
 
-## Pipeline
+> Os modelos já vêm treinados em `models/rf_model.pkl` e `models/svm_model.pkl`. Para re-treinar, é necessário ter o dataset em `data/originais/` (não incluso no repositório) e executar `python src/train_models.py`.
 
-`Imagem → FFT 2D → baixas frequências (32×32×3) → Classificador → Resultado`
+## Dataset
 
-## Resultados
+O modelo foi treinado com **24 imagens** (12 violência, 12 não violência). Cada imagem original é aumentada para 50 versões via rotação, zoom, deslocamento e espelhamento, totalizando 900 amostras de treino.
 
-| Classificador | Acurácia |
-|---|---|
-| RF + FFT | **~87%** |
-| SVM + FFT | ~72% |
+## Modelos
+
+| Modelo | Kernel | Características |
+|--------|--------|----------------|
+| Random Forest | 100 árvores | 60 features (20 anéis × 3 canais) |
+| SVM | RBF | 60 features (20 anéis × 3 canais) |
+
+## Arquivos essenciais
+
+```
+SpecGuard/
+├── specguard.py            # entrada: sobe servidor + abre navegador
+├── app.py                  # servidor Flask com API de predição
+├── models/
+│   ├── rf_model.pkl        # Random Forest treinado
+│   └── svm_model.pkl       # SVM treinado
+├── templates/
+│   └── index.html          # interface web
+├── requirements.txt        # dependências
+└── README.md
+```
+
+## API
+
+`POST /api/predict` — envia uma imagem (`multipart/form-data`, campo `image`), retorna JSON com:
+
+```json
+{
+  "rf": { "classe": "violencia", "confianca": 0.94 },
+  "svm": { "classe": "violencia", "confianca": 0.87 },
+  "plot": "data:image/png;base64,..."
+}
+```
+
+## Tecnologias
+
+- **Python** — Flask, numpy, scikit-learn, OpenCV, TensorFlow/Keras, matplotlib, joblib
+- **Frontend** — HTML + CSS + JavaScript puros
