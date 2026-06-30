@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+static/uploads/*
+.DS_Store
+data/
+results/
+experimentos/
+imgs/
+src/
+guia_completo.*

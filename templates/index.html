@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpecGuard</title>
+<style>
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #f4ede6;
+  color: #2c2c2c;
+  margin: 0;
+  padding: 0;
+}
+
+.topo {
+  background: #2c2c2c;
+  padding: 18px 28px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.topo h1 {
+  font-size: 20px;
+  font-weight: 500;
+  color: #f4ede6;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.topo span {
+  font-size: 13px;
+  color: #b0a89c;
+}
+
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 28px 20px;
+}
+
+.secao {
+  background: #fff;
+  border: 1px solid #d9d0c4;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+
+.secao-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #8a7e6e;
+  margin: 0 0 14px 0;
+}
+
+.upload-area {
+  border: 2px dashed #c9bfb2;
+  padding: 36px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.upload-area:hover {
+  background: #f8f3ec;
+  border-color: #b0a89c;
+}
+
+.upload-area p {
+  margin: 0;
+  font-size: 14px;
+  color: #7a7062;
+}
+
+.upload-area input[type="file"] { display: none; }
+
+.preview-area {
+  display: none;
+  text-align: center;
+}
+
+.preview-area img {
+  max-width: 260px;
+  max-height: 260px;
+  border: 1px solid #d9d0c4;
+}
+
+.acoes {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.btn {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 20px;
+  border: 1px solid #c9bfb2;
+  background: #f4ede6;
+  cursor: pointer;
+  color: #2c2c2c;
+  transition: background 0.15s;
+}
+
+.btn:hover { background: #e8dfd6; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn.primario { background: #2c2c2c; color: #f4ede6; border-color: #2c2c2c; }
+.btn.primario:hover { background: #444; }
+
+.modelos {
+  display: flex;
+  gap: 12px;
+}
+
+.modelo {
+  flex: 1;
+  border: 1px solid #d9d0c4;
+  padding: 14px;
+  text-align: center;
+  background: #fcf9f6;
+}
+
+.modelo .nome {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #8a7e6e;
+  margin-bottom: 6px;
+}
+
+.modelo .classe {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 6px 0;
+  min-height: 1.4em;
+}
+
+.modelo .classe.violencia { color: #b33; }
+.modelo .classe.nao-violencia { color: #2a7a3a; }
+
+.modelo .conf {
+  font-size: 13px;
+  color: #6a6052;
+}
+
+.barra {
+  width: 100%;
+  height: 4px;
+  background: #e0d6ca;
+  margin-top: 8px;
+}
+
+.barra .fill {
+  height: 100%;
+  transition: width 0.4s;
+  background: #888;
+}
+
+.barra .fill.violencia { background: #b33; }
+.barra .fill.nao-violencia { background: #2a7a3a; }
+
+.plot-wrap {
+  text-align: center;
+}
+
+.plot-wrap img {
+  max-width: 100%;
+  border: 1px solid #d9d0c4;
+}
+
+.legenda {
+  font-size: 12px;
+  color: #6a6052;
+  margin-top: 8px;
+}
+
+.legenda span { margin-right: 18px; }
+
+.loading {
+  display: none;
+  text-align: center;
+  padding: 12px;
+  font-size: 14px;
+  color: #6a6052;
+}
+
+.loading::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #c9bfb2;
+  border-top-color: #6a6052;
+  border-radius: 50%;
+  animation: giro 0.7s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes giro { to { transform: rotate(360deg); } }
+
+.erro {
+  display: none;
+  background: #f2e0e0;
+  border: 1px solid #b33;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #800;
+  margin-bottom: 12px;
+}
+
+.rodape {
+  text-align: center;
+  font-size: 12px;
+  color: #b0a89c;
+  margin-top: 32px;
+  padding-bottom: 20px;
+}
+
+#results { display: none; }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <h1>SpecGuard</h1>
+  <span>classificacao de violencia em imagens via perfil radial FFT</span>
+</div>
+
+<div class="container">
+
+  <div class="secao">
+    <div class="secao-titulo">Imagem</div>
+    <div class="upload-area" id="uploadArea">
+      <p>clique ou arraste uma imagem aqui</p>
+      <input type="file" id="fileInput" accept="image/*">
+    </div>
+    <div class="preview-area" id="previewArea">
+      <img id="previewImg">
+      <div class="acoes">
+        <button class="btn primario" id="btnAnalisar" onclick="analisar()">Analisar</button>
+        <button class="btn" onclick="resetar()">Trocar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading" id="loading">processando imagem...</div>
+
+  <div class="erro" id="erro"></div>
+
+  <div id="results">
+    <div class="secao">
+      <div class="secao-titulo">Classificacao</div>
+      <div class="modelos">
+        <div class="modelo">
+          <div class="nome">Random Forest</div>
+          <div class="classe" id="rfClasse">—</div>
+          <div class="conf" id="rfConf">confianca: —</div>
+          <div class="barra"><div class="fill" id="rfBar" style="width:0%"></div></div>
+        </div>
+        <div class="modelo">
+          <div class="nome">SVM (RBF)</div>
+          <div class="classe" id="svmClasse">—</div>
+          <div class="conf" id="svmConf">confianca: —</div>
+          <div class="barra"><div class="fill" id="svmBar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="secao">
+      <div class="secao-titulo">Espectro FFT e perfil radial</div>
+      <div class="plot-wrap">
+        <img id="plotImg">
+      </div>
+      <div class="legenda">
+        <span style="color:#b33;">— vermelho</span>
+        <span style="color:#2a7a3a;">— verde</span>
+        <span style="color:#2a5a8a;">— azul</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="rodape"></div>
+</div>
+
+<script>
+var uploadArea = document.getElementById('uploadArea');
+var fileInput = document.getElementById('fileInput');
+var previewArea = document.getElementById('previewArea');
+var previewImg = document.getElementById('previewImg');
+var loading = document.getElementById('loading');
+var erro = document.getElementById('erro');
+var results = document.getElementById('results');
+
+uploadArea.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  this.style.borderColor = '#8a7e6e';
+});
+uploadArea.addEventListener('dragleave', function() {
+  this.style.borderColor = '#c9bfb2';
+});
+uploadArea.addEventListener('drop', function(e) {
+  e.preventDefault();
+  this.style.borderColor = '#c9bfb2';
+  if (e.dataTransfer.files.length) {
+    fileInput.files = e.dataTransfer.files;
+    mostrarPreview();
+  }
+});
+uploadArea.addEventListener('click', function() { fileInput.click(); });
+fileInput.addEventListener('change', mostrarPreview);
+
+function mostrarPreview() {
+  if (!fileInput.files.length) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    previewImg.src = e.target.result;
+    previewArea.style.display = 'block';
+    uploadArea.style.display = 'none';
+    results.style.display = 'none';
+    erro.style.display = 'none';
+  };
+  reader.readAsDataURL(fileInput.files[0]);
+}
+
+function resetar() {
+  fileInput.value = '';
+  previewArea.style.display = 'none';
+  uploadArea.style.display = 'block';
+  results.style.display = 'none';
+  erro.style.display = 'none';
+}
+
+async function analisar() {
+  if (!fileInput.files.length) return;
+  var formData = new FormData();
+  formData.append('image', fileInput.files[0]);
+
+  loading.style.display = 'block';
+  results.style.display = 'none';
+  erro.style.display = 'none';
+  document.getElementById('btnAnalisar').disabled = true;
+
+  try {
+    var resp = await fetch('/api/predict', { method: 'POST', body: formData });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'erro no servidor');
+
+    mostrarResultado('rf', data.rf);
+    mostrarResultado('svm', data.svm);
+    document.getElementById('plotImg').src = 'data:image/png;base64,' + data.plot;
+
+    loading.style.display = 'none';
+    results.style.display = 'block';
+  } catch (e) {
+    loading.style.display = 'none';
+    erro.innerHTML = '<b>ERRO:</b> ' + e.message + '<br><small>o servidor esta rodando? (python specguard.py)</small>';
+    erro.style.display = 'block';
+  }
+  document.getElementById('btnAnalisar').disabled = false;
+}
+
+function mostrarResultado(modelo, data) {
+  var classeEl = document.getElementById(modelo + 'Classe');
+  var confEl = document.getElementById(modelo + 'Conf');
+  var barEl = document.getElementById(modelo + 'Bar');
+
+  var classe = data.classe;
+  var confianca = (data.confianca * 100).toFixed(1);
+
+  classeEl.textContent = classe === 'violencia' ? 'VIOLENCIA' : 'NAO VIOLENCIA';
+  classeEl.className = 'classe ' + classe;
+  confEl.textContent = 'confianca: ' + confianca + '%';
+  barEl.className = 'fill ' + classe;
+  barEl.style.width = confianca + '%';
+}
+</script>
+</body>
+</html>
